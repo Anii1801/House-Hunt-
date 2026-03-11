@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>House Hunt</title>
+
+<style>
+
+body{
+font-family:Arial;
+margin:40px;
+background:#f4f4f4
+}
+
+.container{
+background:white;
+padding:20px;
+border-radius:10px;
+width:500px
+}
+
+input,button{
+margin:5px;
+padding:8px;
+width:90%
+}
+
+button{
+background:#007BFF;
+color:white;
+border:none;
+cursor:pointer
+}
+
+button:hover{
+background:#0056b3
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<h1>House Hunt Demo</h1>
+
+<h2>Register</h2>
+
+<input id="rname" placeholder="Name">
+<input id="remail" placeholder="Email">
+<input id="rpass" placeholder="Password">
+
+<button onclick="register()">Register</button>
+
+<hr>
+
+<h2>Login</h2>
+
+<input id="lemail" placeholder="Email">
+<input id="lpass" placeholder="Password">
+
+<button onclick="login()">Login</button>
+
+<hr>
+
+<h2>Add Property</h2>
+
+<input id="title" placeholder="Title">
+<input id="location" placeholder="Location">
+<input id="price" placeholder="Price">
+<input id="type" placeholder="Type">
+
+<button onclick="addProperty()">Add Property</button>
+
+<hr>
+
+<h2>View Properties</h2>
+
+<button onclick="getProperties()">Load Properties</button>
+
+</div>
+
+<h3>Output</h3>
+
+<pre id="output"></pre>
+
+<script>
+
+const API="https://house-hunt-kz2d.onrender.com"
+
+let token=""
+
+function show(data){
+document.getElementById("output").innerText=JSON.stringify(data,null,2)
+}
+
+async function register(){
+
+const res=await fetch(API+"/register",{
+
+method:"POST",
+
+headers:{
+"Content-Type":"application/json"
+},
+
+body:JSON.stringify({
+name:document.getElementById("rname").value,
+email:document.getElementById("remail").value,
+password:document.getElementById("rpass").value
+})
+
+})
+
+const data=await res.json()
+
+show(data)
+
+}
+
+async function login(){
+
+const res=await fetch(API+"/login",{
+
+method:"POST",
+
+headers:{
+"Content-Type":"application/json"
+},
+
+body:JSON.stringify({
+email:document.getElementById("lemail").value,
+password:document.getElementById("lpass").value
+})
+
+})
+
+const data=await res.json()
+
+token=data.token
+
+show(data)
+
+}
+
+async function addProperty(){
+
+const res=await fetch(API+"/property",{
+
+method:"POST",
+
+headers:{
+"Content-Type":"application/json",
+"Authorization":token
+},
+
+body:JSON.stringify({
+
+title:document.getElementById("title").value,
+location:document.getElementById("location").value,
+price:document.getElementById("price").value,
+type:document.getElementById("type").value
+
+})
+
+})
+
+const data=await res.json()
+
+show(data)
+
+}
+
+async function getProperties(){
+
+const res=await fetch(API+"/properties")
+
+const data=await res.json()
+
+show(data)
+
+}
+
+</script>
+
+</body>
+</html>
