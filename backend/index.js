@@ -1,180 +1,224 @@
 require("dotenv").config()
+
 const express = require("express")
 const jwt = require("jsonwebtoken")
 const bcrypt = require("bcryptjs")
 const cors = require("cors")
 const path = require("path")
+const mongoose = require("mongoose")
+
 const app = express()
 
-app.use(express.static(path.join(__dirname,"public")))
+app.use(express.json())
 app.use(cors())
 
-const PORT = process.env.PORT || 5000
+/* ---------------- MongoDB Connection ---------------- */
 
-/* ---------------- Mock Database ---------------- */
+mongoose.connect(process.env.MONGO_URI)
+.then(()=>{
+console.log("MongoDB Connected")
+})
+.catch(err=>{
+console.log("MongoDB Error:",err)
+})
 
-let users = []
-let properties = []
-let bookings = []
+/* ---------------- Static Frontend ---------------- */
+
+app.use(express.static(path.join(__dirname,"public")))
+
+/* ---------------- Models ---------------- */
+
+const User = require("./models/User")
+const Property = require("./models/Property")
 
 /* ---------------- Middleware ---------------- */
 
 function auth(req,res,next){
 
-    const token = req.headers.authorization
+const token = req.headers.authorization
 
-    if(!token){
-        return res.status(401).json("No token provided")
-    }
+if(!token){
+return res.status(401).json("No token provided")
+}
 
-    try{
-        const decoded = jwt.verify(token,process.env.JWT_SECRET || "secret")
-        req.user = decoded
-        next()
-    }
-    catch(err){
-        res.status(401).json("Invalid token")
-    }
+try{
+
+const decoded = jwt.verify(token,process.env.JWT_SECRET)
+
+req.user = decoded
+
+next()
+
+}
+catch(err){
+
+res.status(401).json("Invalid token")
+
+}
+
 }
 
 function admin(req,res,next){
 
-    if(req.user.role !== "admin"){
-        return res.status(403).json("Admin only")
-    }
+if(req.user.role !== "admin"){
+return res.status(403).json("Admin only")
+}
 
-    next()
+next()
+
 }
 
 /* ---------------- USER REGISTER ---------------- */
 
 app.post("/register", async(req,res)=>{
 
-    const {name,email,password} = req.body
+try{
 
-    const hashed = await bcrypt.hash(password,10)
+const {name,email,password} = req.body
 
-    const user = {
-        id: Date.now(),
-        name,
-        email,
-        password: hashed,
-        role: "user"
-    }
+const existing = await User.findOne({email})
 
-    users.push(user)
+if(existing){
+return res.json({message:"User already exists"})
+}
 
-    res.json({message:"User registered"})
+const hashed = await bcrypt.hash(password,10)
+
+const user = new User({
+name,
+email,
+password:hashed
+})
+
+await user.save()
+
+res.json({message:"User registered"})
+
+}
+catch(err){
+
+res.status(500).json(err)
+
+}
+
 })
 
 /* ---------------- LOGIN ---------------- */
 
 app.post("/login", async(req,res)=>{
 
-    const {email,password} = req.body
+try{
 
-    const user = users.find(u=>u.email===email)
+const {email,password} = req.body
 
-    if(!user){
-        return res.json("User not found")
-    }
+const user = await User.findOne({email})
 
-    const valid = await bcrypt.compare(password,user.password)
+if(!user){
+return res.json("User not found")
+}
 
-    if(!valid){
-        return res.json("Wrong password")
-    }
+const valid = await bcrypt.compare(password,user.password)
 
-    const token = jwt.sign(
-        {id:user.id,role:user.role},
-        process.env.JWT_SECRET || "secret",
-        {expiresIn:"1d"}
-    )
+if(!valid){
+return res.json("Wrong password")
+}
 
-    res.json({token})
+const token = jwt.sign(
+{
+id:user._id,
+role:user.role
+},
+process.env.JWT_SECRET,
+{expiresIn:"1d"}
+)
+
+res.json({token})
+
+}
+catch(err){
+
+res.status(500).json(err)
+
+}
+
 })
 
 /* ---------------- ADD PROPERTY ---------------- */
 
-app.post("/property", auth, (req,res)=>{
+app.post("/property", auth, async(req,res)=>{
 
-    const property = {
-        id: Date.now(),
-        ...req.body,
-        owner: req.user.id,
-        approved:false
-    }
+try{
 
-    properties.push(property)
+const property = new Property({
+title:req.body.title,
+location:req.body.location,
+price:req.body.price,
+type:req.body.type,
+owner:req.user.id,
+approved:false
+})
 
-    res.json(property)
+await property.save()
+
+res.json(property)
+
+}
+catch(err){
+
+res.status(500).json(err)
+
+}
+
 })
 
 /* ---------------- ADMIN APPROVE PROPERTY ---------------- */
 
-app.put("/property/approve/:id", auth, admin, (req,res)=>{
+app.put("/property/approve/:id", auth, admin, async(req,res)=>{
 
-    const property = properties.find(p=>p.id == req.params.id)
+const property = await Property.findById(req.params.id)
 
-    if(property){
-        property.approved = true
-        res.json(property)
-    }
-    else{
-        res.json("Property not found")
-    }
+if(!property){
+return res.json("Property not found")
+}
+
+property.approved = true
+
+await property.save()
+
+res.json(property)
+
 })
 
 /* ---------------- GET PROPERTIES ---------------- */
 
-app.get("/properties", (req,res)=>{
+app.get("/properties", async(req,res)=>{
 
-    const {location,price,type} = req.query
+const {location,price,type} = req.query
 
-    let result = properties.filter(p=>p.approved)
+let query = {approved:true}
 
-    if(location){
-        result = result.filter(p=>p.location===location)
-    }
+if(location){
+query.location = location
+}
 
-    if(price){
-        result = result.filter(p=>p.price <= price)
-    }
+if(type){
+query.type = type
+}
 
-    if(type){
-        result = result.filter(p=>p.type === type)
-    }
+let properties = await Property.find(query)
 
-    res.json(result)
-})
+if(price){
+properties = properties.filter(p=>p.price <= price)
+}
 
-/* ---------------- BOOK PROPERTY ---------------- */
+res.json(properties)
 
-app.post("/booking", auth, (req,res)=>{
-
-    const booking = {
-        id: Date.now(),
-        user:req.user.id,
-        property:req.body.propertyId,
-        date:new Date()
-    }
-
-    bookings.push(booking)
-
-    res.json(booking)
-})
-
-/* ---------------- USER BOOKINGS ---------------- */
-
-app.get("/bookings", auth, (req,res)=>{
-
-    const userBookings = bookings.filter(b=>b.user === req.user.id)
-
-    res.json(userBookings)
 })
 
 /* ---------------- SERVER ---------------- */
 
+const PORT = process.env.PORT || 5000
+
 app.listen(PORT, ()=>{
-    console.log(`Server running on port ${PORT}`)
+console.log(`Server running on port ${PORT}`)
 })

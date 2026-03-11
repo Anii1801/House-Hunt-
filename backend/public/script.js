@@ -1,13 +1,15 @@
 const API="https://house-hunt-kz2d.onrender.com"
 
-let token=localStorage.getItem("token") || ""
-
 async function register(){
 
 const res=await fetch(API+"/register",{
 
 method:"POST",
-headers:{"Content-Type":"application/json"},
+
+headers:{
+"Content-Type":"application/json"
+},
+
 body:JSON.stringify({
 name:rname.value,
 email:remail.value,
@@ -16,8 +18,9 @@ password:rpass.value
 
 })
 
-alert("Registered Successfully")
+alert("Registration Successful")
 window.location="login.html"
+
 }
 
 
@@ -26,7 +29,11 @@ async function login(){
 const res=await fetch(API+"/login",{
 
 method:"POST",
-headers:{"Content-Type":"application/json"},
+
+headers:{
+"Content-Type":"application/json"
+},
+
 body:JSON.stringify({
 email:lemail.value,
 password:lpass.value
@@ -38,7 +45,7 @@ const data=await res.json()
 
 localStorage.setItem("token",data.token)
 
-alert("Login Successful")
+alert("Login successful")
 
 window.location="index.html"
 
@@ -52,6 +59,7 @@ const token=localStorage.getItem("token")
 const res=await fetch(API+"/property",{
 
 method:"POST",
+
 headers:{
 "Content-Type":"application/json",
 "Authorization":token
@@ -90,7 +98,7 @@ div.className="property"
 div.innerHTML=`
 <h3>${p.title}</h3>
 <p>📍 ${p.location}</p>
-<p>💰 ${p.price}</p>
+<p>💰 ₹${p.price}</p>
 <p>${p.type}</p>
 `
 
