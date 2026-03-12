@@ -11,9 +11,9 @@ const app = express()
 
 app.use(express.json())
 app.use(cors())
+console.log(process.env.MONGO_URI)
 
 /* ---------------- MongoDB Connection ---------------- */
-
 mongoose.connect(process.env.MONGO_URI)
 .then(()=>{
 console.log("MongoDB Connected")
@@ -21,7 +21,6 @@ console.log("MongoDB Connected")
 .catch(err=>{
 console.log("MongoDB Error:",err)
 })
-
 /* ---------------- Static Frontend ---------------- */
 
 app.use(express.static(path.join(__dirname,"public")))
